@@ -1,6 +1,8 @@
 import crypto from 'crypto';
 import { storage } from './storage';
 import { InsertCertificate, Certificate } from '@shared/schema';
+import { blockchainService } from './blockchain-service';
+import { log } from './vite';
 
 export class CertificateService {
   /**
@@ -36,32 +38,89 @@ export class CertificateService {
     const certificateHash = this.generateCertificateHash(certificate);
     const certificateId = this.generateCertificateId();
     
-    return storage.createCertificate({
+    // First store in the local database
+    const savedCertificate = await storage.createCertificate({
       ...certificate,
       certificateHash,
       certificateId,
     });
+
+    // Then try to store in blockchain if configured
+    try {
+      if (blockchainService.isConfigured()) {
+        const blockchainResult = await blockchainService.storeCertificate(savedCertificate);
+        if (blockchainResult) {
+          log(`Certificate stored on blockchain. CID: ${blockchainResult.cid}, TX: ${blockchainResult.txHash}`, 'certificate');
+          
+          // In a production environment, you might want to store these values
+          // in your database for future reference
+        }
+      } else {
+        log('Blockchain service not configured. Certificate stored only in database.', 'certificate');
+      }
+    } catch (error) {
+      // Don't fail if blockchain storage fails - we still have the database record
+      log(`Failed to store certificate on blockchain: ${error}`, 'certificate');
+    }
+    
+    return savedCertificate;
   }
 
   /**
    * Verify a certificate by its hash
    */
   static async verifyCertificateByHash(hash: string): Promise<Certificate | undefined> {
-    return storage.getCertificateByHash(hash);
+    // First check our database
+    const certificate = await storage.getCertificateByHash(hash);
+    
+    // If found and blockchain is configured, also verify on blockchain
+    if (certificate && blockchainService.isConfigured()) {
+      try {
+        // In a real implementation, you'd need to retrieve the CID associated with this certificate
+        // Here, we're just showing the concept - you would store the CID when issuing the certificate
+        
+        // This would verify the certificate hash on the blockchain
+        // const isValid = await blockchainService.verifyCertificate(certificate.cid, hash);
+        
+        // You could then use this information to enhance the verification
+      } catch (error) {
+        log(`Blockchain verification failed: ${error}`, 'certificate');
+      }
+    }
+    
+    return certificate;
   }
 
   /**
    * Verify a certificate by its ID
    */
   static async verifyCertificateById(id: string): Promise<Certificate | undefined> {
-    return storage.getCertificateById(id);
+    // First check our database
+    const certificate = await storage.getCertificateById(id);
+    
+    // Similar to the hash verification, we would also verify on blockchain if configured
+    if (certificate && blockchainService.isConfigured()) {
+      try {
+        // Similar blockchain verification as above would happen here
+      } catch (error) {
+        log(`Blockchain verification failed: ${error}`, 'certificate');
+      }
+    }
+    
+    return certificate;
   }
 
   /**
    * Revoke a certificate
    */
   static async revokeCertificate(id: number, reason: string): Promise<Certificate | undefined> {
-    return storage.updateCertificateStatus(id, 'revoked', reason);
+    // Update in local database
+    const certificate = await storage.updateCertificateStatus(id, 'revoked', reason);
+    
+    // In a real blockchain implementation, you would also record the revocation
+    // on the blockchain for immutable proof of revocation
+    
+    return certificate;
   }
 
   /**
