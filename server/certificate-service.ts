@@ -45,26 +45,26 @@ export class CertificateService {
       certificateId,
     });
 
-    // Then try to store in blockchain if configured
+    // Then try to store in IPFS/blockchain if configured
     try {
       if (blockchainService.isConfigured()) {
         const blockchainResult = await blockchainService.storeCertificate(savedCertificate);
         if (blockchainResult) {
-          log(`Certificate stored on blockchain. CID: ${blockchainResult.cid}, TX: ${blockchainResult.txHash}`, 'certificate');
+          log(`Certificate stored on IPFS with CID: ${blockchainResult.cid}`, 'certificate');
           
-          // Store the blockchain data in the database
+          // Store the IPFS data in the database (and blockchain tx hash if available)
           await storage.updateCertificateBlockchainData(
             savedCertificate.id,
             blockchainResult.cid,
-            blockchainResult.txHash
+            blockchainResult.txHash || null
           );
         }
       } else {
-        log('Blockchain service not configured. Certificate stored only in database.', 'certificate');
+        log('IPFS/Blockchain service not configured. Certificate stored only in database.', 'certificate');
       }
     } catch (error) {
       // Don't fail if blockchain storage fails - we still have the database record
-      log(`Failed to store certificate on blockchain: ${error}`, 'certificate');
+      log(`Failed to store certificate on IPFS/blockchain: ${error}`, 'certificate');
     }
     
     return savedCertificate;

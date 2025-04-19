@@ -20,7 +20,7 @@ export interface IStorage {
   createCertificate(certificate: InsertCertificate & { certificateHash: string, certificateId: string }): Promise<Certificate>;
   updateCertificateStatus(id: number, status: string, reason?: string): Promise<Certificate | undefined>;
   // Blockchain-related method
-  updateCertificateBlockchainData(id: number, ipfsCid: string, blockchainTxHash: string): Promise<Certificate | undefined>;
+  updateCertificateBlockchainData(id: number, ipfsCid: string, blockchainTxHash: string | null): Promise<Certificate | undefined>;
   
   // Verification management
   getVerificationsByCertificateId(certificateId: number): Promise<Verification[]>;
@@ -28,14 +28,14 @@ export interface IStorage {
   getAllVerifications(): Promise<Verification[]>;
   
   // Session store
-  sessionStore: session.SessionStore;
+  sessionStore: any;
 }
 
 export class MemStorage implements IStorage {
   private users: Map<number, User>;
   private certificates: Map<number, Certificate>;
   private verifications: Map<number, Verification>;
-  sessionStore: session.SessionStore;
+  sessionStore: any;
   private userCurrentId: number;
   private certificateCurrentId: number;
   private verificationCurrentId: number;
@@ -65,7 +65,11 @@ export class MemStorage implements IStorage {
 
   async createUser(insertUser: InsertUser): Promise<User> {
     const id = this.userCurrentId++;
-    const user: User = { ...insertUser, id };
+    const user: User = { 
+      ...insertUser, 
+      id,
+      role: insertUser.role || 'student' // Default role if not provided
+    };
     this.users.set(id, user);
     return user;
   }
@@ -111,7 +115,15 @@ export class MemStorage implements IStorage {
       issueDate: certificate.issueDate || new Date(),
       status: "active",
       revocationDate: null,
-      revocationReason: null
+      revocationReason: null,
+      // Ensure required fields with default values if not provided
+      studentId: certificate.studentId || null,
+      universityId: certificate.universityId || null,
+      degreeField: certificate.degreeField || null,
+      graduationDate: certificate.graduationDate || null,
+      additionalInfo: certificate.additionalInfo || null,
+      ipfsCid: certificate.ipfsCid || null,
+      blockchainTxHash: certificate.blockchainTxHash || null
     };
     this.certificates.set(id, newCertificate);
     return newCertificate;
@@ -132,7 +144,7 @@ export class MemStorage implements IStorage {
     return updatedCertificate;
   }
   
-  async updateCertificateBlockchainData(id: number, ipfsCid: string, blockchainTxHash: string): Promise<Certificate | undefined> {
+  async updateCertificateBlockchainData(id: number, ipfsCid: string, blockchainTxHash: string | null): Promise<Certificate | undefined> {
     const certificate = this.certificates.get(id);
     if (!certificate) return undefined;
     
@@ -158,6 +170,10 @@ export class MemStorage implements IStorage {
     const newVerification: Verification = {
       ...verification,
       id,
+      certificateId: verification.certificateId || null,
+      status: verification.status || 'verified',
+      verifiedBy: verification.verifiedBy,
+      verifiedByEmail: verification.verifiedByEmail || null,
       verifiedAt: new Date()
     };
     this.verifications.set(id, newVerification);
