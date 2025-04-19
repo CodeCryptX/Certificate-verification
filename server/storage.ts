@@ -19,6 +19,8 @@ export interface IStorage {
   getAllCertificates(): Promise<Certificate[]>;
   createCertificate(certificate: InsertCertificate & { certificateHash: string, certificateId: string }): Promise<Certificate>;
   updateCertificateStatus(id: number, status: string, reason?: string): Promise<Certificate | undefined>;
+  // Blockchain-related method
+  updateCertificateBlockchainData(id: number, ipfsCid: string, blockchainTxHash: string): Promise<Certificate | undefined>;
   
   // Verification management
   getVerificationsByCertificateId(certificateId: number): Promise<Verification[]>;
@@ -124,6 +126,20 @@ export class MemStorage implements IStorage {
       status,
       revocationDate: status === "revoked" ? new Date() : certificate.revocationDate,
       revocationReason: reason || certificate.revocationReason
+    };
+    
+    this.certificates.set(id, updatedCertificate);
+    return updatedCertificate;
+  }
+  
+  async updateCertificateBlockchainData(id: number, ipfsCid: string, blockchainTxHash: string): Promise<Certificate | undefined> {
+    const certificate = this.certificates.get(id);
+    if (!certificate) return undefined;
+    
+    const updatedCertificate: Certificate = {
+      ...certificate,
+      ipfsCid,
+      blockchainTxHash
     };
     
     this.certificates.set(id, updatedCertificate);

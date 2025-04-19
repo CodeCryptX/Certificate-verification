@@ -205,7 +205,7 @@ export class BlockchainService {
       const tx = await this.contract.methods.storeHash(
         cid, 
         certificate.certificateHash,
-        certificate.studentId.toString()
+        (certificate.studentId || '').toString()
       ).send({ 
         from: this.accountAddress,
         gas: 500000

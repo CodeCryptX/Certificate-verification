@@ -52,8 +52,12 @@ export class CertificateService {
         if (blockchainResult) {
           log(`Certificate stored on blockchain. CID: ${blockchainResult.cid}, TX: ${blockchainResult.txHash}`, 'certificate');
           
-          // In a production environment, you might want to store these values
-          // in your database for future reference
+          // Store the blockchain data in the database
+          await storage.updateCertificateBlockchainData(
+            savedCertificate.id,
+            blockchainResult.cid,
+            blockchainResult.txHash
+          );
         }
       } else {
         log('Blockchain service not configured. Certificate stored only in database.', 'certificate');
@@ -74,15 +78,20 @@ export class CertificateService {
     const certificate = await storage.getCertificateByHash(hash);
     
     // If found and blockchain is configured, also verify on blockchain
-    if (certificate && blockchainService.isConfigured()) {
+    if (certificate && blockchainService.isConfigured() && certificate.ipfsCid) {
       try {
-        // In a real implementation, you'd need to retrieve the CID associated with this certificate
-        // Here, we're just showing the concept - you would store the CID when issuing the certificate
+        // Verify the certificate hash on the blockchain using the stored CID
+        const isValid = await blockchainService.verifyCertificate(certificate.ipfsCid, hash);
         
-        // This would verify the certificate hash on the blockchain
-        // const isValid = await blockchainService.verifyCertificate(certificate.cid, hash);
-        
-        // You could then use this information to enhance the verification
+        // Log the blockchain verification result
+        if (isValid === true) {
+          log(`Certificate verified on blockchain successfully. Hash: ${hash}`, 'certificate');
+        } else if (isValid === false) {
+          log(`Certificate verification failed on blockchain. Hash mismatch. Hash: ${hash}`, 'certificate');
+          // In a production environment, you might want to flag this certificate as potentially tampered
+        } else {
+          log(`Blockchain verification returned null (service error). Hash: ${hash}`, 'certificate');
+        }
       } catch (error) {
         log(`Blockchain verification failed: ${error}`, 'certificate');
       }
@@ -99,9 +108,23 @@ export class CertificateService {
     const certificate = await storage.getCertificateById(id);
     
     // Similar to the hash verification, we would also verify on blockchain if configured
-    if (certificate && blockchainService.isConfigured()) {
+    if (certificate && blockchainService.isConfigured() && certificate.ipfsCid && certificate.certificateHash) {
       try {
-        // Similar blockchain verification as above would happen here
+        // Verify the certificate hash on the blockchain using the stored CID
+        const isValid = await blockchainService.verifyCertificate(
+          certificate.ipfsCid, 
+          certificate.certificateHash
+        );
+        
+        // Log the blockchain verification result
+        if (isValid === true) {
+          log(`Certificate verified on blockchain successfully. ID: ${id}`, 'certificate');
+        } else if (isValid === false) {
+          log(`Certificate verification failed on blockchain. Hash mismatch. ID: ${id}`, 'certificate');
+          // In a production environment, you might want to flag this certificate as potentially tampered
+        } else {
+          log(`Blockchain verification returned null (service error). ID: ${id}`, 'certificate');
+        }
       } catch (error) {
         log(`Blockchain verification failed: ${error}`, 'certificate');
       }

@@ -26,6 +26,9 @@ export const certificates = pgTable("certificates", {
   status: text("status").notNull().default("active"),
   revocationDate: timestamp("revocation_date"),
   revocationReason: text("revocation_reason"),
+  // Blockchain-related fields
+  ipfsCid: text("ipfs_cid"), // Content ID on IPFS 
+  blockchainTxHash: text("blockchain_tx_hash"), // Transaction hash on blockchain
 });
 
 export const verifications = pgTable("verifications", {
