@@ -14,7 +14,7 @@ type NavItem = {
 export default function Header() {
   const [isOpen, setIsOpen] = useState(false);
   const [location] = useLocation();
-  const { user } = useAuth();
+  const { user, logoutMutation } = useAuth();
 
   // Define the navigation items based on available roles
   const navItems: NavItem[] = [
