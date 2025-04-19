@@ -170,7 +170,7 @@ export default function Header() {
               <button
                 onClick={() => {
                   setIsOpen(false);
-                  useAuth().logoutMutation.mutate();
+                  logoutMutation.mutate();
                 }}
                 className="w-full text-left block px-4 py-2 text-base font-medium text-secondary-500 hover:text-secondary-800 hover:bg-secondary-100"
               >
