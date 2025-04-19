@@ -156,9 +156,16 @@ export class BlockchainService {
       // Use the account from environment, or default to the first account
       const privateKey = process.env.ETHEREUM_PRIVATE_KEY;
       if (privateKey && this.web3) {
-        const account = this.web3.eth.accounts.privateKeyToAccount(privateKey);
-        this.web3.eth.accounts.wallet.add(account);
-        this.accountAddress = account.address;
+        try {
+          // Ensure private key has 0x prefix
+          const formattedKey = privateKey.startsWith('0x') ? privateKey : `0x${privateKey}`;
+          const account = this.web3.eth.accounts.privateKeyToAccount(formattedKey);
+          this.web3.eth.accounts.wallet.add(account);
+          this.accountAddress = account.address;
+          log(`Ethereum account configured: ${this.accountAddress}`, 'blockchain');
+        } catch (error) {
+          log(`Error setting up Ethereum account: ${error}`, 'blockchain');
+        }
       } else if (this.web3) {
         // Fallback: try to get accounts from the connected provider
         this.web3.eth.getAccounts()
