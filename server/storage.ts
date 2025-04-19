@@ -109,22 +109,28 @@ export class MemStorage implements IStorage {
 
   async createCertificate(certificate: InsertCertificate & { certificateHash: string, certificateId: string }): Promise<Certificate> {
     const id = this.certificateCurrentId++;
-    const newCertificate: Certificate = { 
-      ...certificate, 
+    
+    // Create certificate with explicit field mappings to match schema
+    const newCertificate: Certificate = {
       id,
+      certificateId: certificate.certificateId,
+      certificateHash: certificate.certificateHash,
+      studentName: certificate.studentName,
+      studentEmail: certificate.studentEmail,
+      universityName: certificate.universityName,
+      degreeName: certificate.degreeName,
+      // Optional fields with defaults
+      studentId: certificate.studentId || null,
+      universityId: certificate.universityId || null,
+      degreeField: certificate.degreeField || null,
       issueDate: certificate.issueDate || new Date(),
       status: "active",
       revocationDate: null,
       revocationReason: null,
-      // Ensure required fields with default values if not provided
-      studentId: certificate.studentId || null,
-      universityId: certificate.universityId || null,
-      degreeField: certificate.degreeField || null,
-      graduationDate: certificate.graduationDate || null,
-      additionalInfo: certificate.additionalInfo || null,
       ipfsCid: certificate.ipfsCid || null,
       blockchainTxHash: certificate.blockchainTxHash || null
     };
+    
     this.certificates.set(id, newCertificate);
     return newCertificate;
   }
@@ -167,8 +173,9 @@ export class MemStorage implements IStorage {
 
   async createVerification(verification: InsertVerification): Promise<Verification> {
     const id = this.verificationCurrentId++;
+    
+    // Create verification with explicit field mappings to match schema
     const newVerification: Verification = {
-      ...verification,
       id,
       certificateId: verification.certificateId || null,
       status: verification.status || 'verified',
@@ -176,6 +183,7 @@ export class MemStorage implements IStorage {
       verifiedByEmail: verification.verifiedByEmail || null,
       verifiedAt: new Date()
     };
+    
     this.verifications.set(id, newVerification);
     return newVerification;
   }
