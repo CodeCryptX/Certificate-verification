@@ -87,27 +87,24 @@ const CONTRACT_ABI = [
 ];
 
 // IPFS configuration
-// To use Infura's IPFS service, you'd need authentication
-// For demonstration, we'll set up a fallback approach if not configured
+// We'll use the provided IPFS API URL directly
 const getIpfsClient = () => {
   try {
-    // Check if we have IPFS project ID and secret
-    const projectId = process.env.IPFS_PROJECT_ID;
-    const projectSecret = process.env.IPFS_PROJECT_SECRET;
+    // Check if we have an IPFS API URL
+    const ipfsApiUrl = process.env.IPFS_API_URL;
     
-    if (projectId && projectSecret) {
-      const auth = 'Basic ' + Buffer.from(projectId + ':' + projectSecret).toString('base64');
+    if (ipfsApiUrl) {
+      // Parse the URL to get host, port, and protocol
+      const url = new URL(ipfsApiUrl);
       return ipfsHttpClient({
-        host: 'ipfs.infura.io',
-        port: 5001,
-        protocol: 'https',
-        headers: {
-          authorization: auth
-        }
+        host: url.hostname,
+        port: parseInt(url.port) || (url.protocol === 'https:' ? 443 : 80),
+        protocol: url.protocol.replace(':', ''),
+        apiPath: url.pathname
       });
     } else {
       // Fallback to public gateway for read-only operations
-      log('IPFS project credentials not found. Operating in read-only mode.', 'blockchain');
+      log('IPFS API URL not found. Operating in read-only mode.', 'blockchain');
       return null;
     }
   } catch (error) {
@@ -181,17 +178,32 @@ export class BlockchainService {
 
   /**
    * Check if blockchain services are properly configured
+   * We're being flexible - even if just IPFS is available, we can store certificates
    */
   isConfigured(): boolean {
-    return !!(this.ipfs && this.web3 && this.contract && this.accountAddress);
+    // If we have at least IPFS, we can store certificates
+    const ipfsConfigured = !!this.ipfs;
+    
+    // Full blockchain verification requires Ethereum setup
+    const blockchainConfigured = !!(this.web3 && this.contract && this.accountAddress);
+    
+    // For now, we'll consider it configured if at least IPFS is available
+    return ipfsConfigured;
+  }
+  
+  /**
+   * Check if full blockchain verification is configured
+   */
+  isBlockchainVerificationConfigured(): boolean {
+    return !!(this.web3 && this.contract);
   }
 
   /**
-   * Store a certificate on IPFS and record its hash on the blockchain
+   * Store a certificate on IPFS and record its hash on the blockchain if configured
    */
-  async storeCertificate(certificate: Certificate): Promise<{ cid: string, txHash: string } | null> {
-    if (!this.isConfigured()) {
-      log('Blockchain services not properly configured', 'blockchain');
+  async storeCertificate(certificate: Certificate): Promise<{ cid: string, txHash?: string } | null> {
+    if (!this.ipfs) {
+      log('IPFS service not properly configured', 'blockchain');
       return null;
     }
 
@@ -200,24 +212,36 @@ export class BlockchainService {
       const certificateData = Buffer.from(JSON.stringify(certificate));
       const result = await this.ipfs.add(certificateData);
       const cid = result.path;
-
-      // 2. Store the CID and hash on the blockchain
-      const tx = await this.contract.methods.storeHash(
-        cid, 
-        certificate.certificateHash,
-        (certificate.studentId || '').toString()
-      ).send({ 
-        from: this.accountAddress,
-        gas: 500000
-      });
-
+      
       log(`Certificate stored on IPFS with CID: ${cid}`, 'blockchain');
-      log(`Transaction hash: ${tx.transactionHash}`, 'blockchain');
 
-      return {
-        cid,
-        txHash: tx.transactionHash
-      };
+      // 2. If blockchain is configured, also store the CID and hash on the blockchain
+      if (this.isBlockchainVerificationConfigured() && this.accountAddress) {
+        try {
+          const tx = await this.contract.methods.storeHash(
+            cid, 
+            certificate.certificateHash,
+            (certificate.studentId || '').toString()
+          ).send({ 
+            from: this.accountAddress,
+            gas: 500000
+          });
+          
+          log(`Transaction hash: ${tx.transactionHash}`, 'blockchain');
+          
+          return {
+            cid,
+            txHash: tx.transactionHash
+          };
+        } catch (blockchainError) {
+          log(`Error storing on blockchain, but IPFS storage succeeded: ${blockchainError}`, 'blockchain');
+          // Continue with just the IPFS result
+          return { cid };
+        }
+      }
+      
+      // Return just the IPFS CID if blockchain isn't configured
+      return { cid };
     } catch (error) {
       log(`Error storing certificate: ${error}`, 'blockchain');
       return null;

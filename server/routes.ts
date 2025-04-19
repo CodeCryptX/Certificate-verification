@@ -6,6 +6,7 @@ import { CertificateService } from "./certificate-service";
 import { insertCertificateSchema, revokeCertificateSchema } from "@shared/schema";
 import { ZodError } from "zod";
 import { fromZodError } from "zod-validation-error";
+import { blockchainService } from "./blockchain-service";
 
 // Helper middleware to check roles
 const requireRole = (roles: string[]) => {
@@ -191,6 +192,65 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(verifications);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch verifications" });
+    }
+  });
+
+  // Blockchain-related routes
+  // Get blockchain configuration status - admin only
+  app.get("/api/blockchain/status", requireRole(["admin"]), async (req, res) => {
+    try {
+      const isConfigured = blockchainService.isConfigured();
+      
+      // Return configuration status to admin
+      res.json({
+        isConfigured,
+        provider: process.env.ETHEREUM_PROVIDER || null,
+        contractAddress: process.env.CONTRACT_ADDRESS || null,
+        ipfsConfigured: !!process.env.IPFS_API_URL,
+        accountConfigured: !!process.env.ETHEREUM_PRIVATE_KEY
+      });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch blockchain status" });
+    }
+  });
+
+  // Retrieve a certificate from IPFS - admin only
+  app.get("/api/blockchain/ipfs/:cid", requireRole(["admin"]), async (req, res) => {
+    try {
+      if (!blockchainService.isConfigured()) {
+        return res.status(503).json({ message: "Blockchain services not properly configured" });
+      }
+      
+      const certificate = await blockchainService.retrieveCertificate(req.params.cid);
+      
+      if (!certificate) {
+        return res.status(404).json({ message: "Certificate not found on IPFS" });
+      }
+      
+      res.json(certificate);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to retrieve certificate from IPFS" });
+    }
+  });
+
+  // Verify a certificate directly on the blockchain - admin only
+  app.post("/api/blockchain/verify", requireRole(["admin"]), async (req, res) => {
+    try {
+      if (!blockchainService.isConfigured()) {
+        return res.status(503).json({ message: "Blockchain services not properly configured" });
+      }
+      
+      const { cid, hash } = req.body;
+      
+      if (!cid || !hash) {
+        return res.status(400).json({ message: "CID and hash are required" });
+      }
+      
+      const isValid = await blockchainService.verifyCertificate(cid, hash);
+      
+      res.json({ isValid });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to verify certificate on blockchain" });
     }
   });
 
