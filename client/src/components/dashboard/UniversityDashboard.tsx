@@ -1,45 +1,51 @@
-import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Certificate } from '@shared/schema';
-import { formatDate, getStatusBadgeClass } from '@/utils/certificate-utils';
-import { Loader2, Search, PlusCircle, ShieldAlert } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { useToast } from '@/hooks/use-toast';
-import { apiRequest } from '@/lib/queryClient';
-import IssueCertificateModal from '@/components/certificate/IssueCertificateModal';
-import CertificateDetails from '@/components/certificate/CertificateDetails';
+import { useState } from "react";
+// Add this import at the top of UniversityDashboard.tsx
+import QRScannerModal from "@/components/certificate/QRScannerModal";
+import { useNavigate } from "react-router-dom"; // If you're using React Router
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Certificate } from "@shared/schema";
+import { formatDate, getStatusBadgeClass } from "@/utils/certificate-utils";
+import { Loader2, Search, PlusCircle, ShieldAlert } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
+import IssueCertificateModal from "@/components/certificate/IssueCertificateModal";
+import CertificateDetails from "@/components/certificate/CertificateDetails";
 
 export default function UniversityDashboard() {
   const [isIssueModalOpen, setIsIssueModalOpen] = useState(false);
-  const [selectedCertificate, setSelectedCertificate] = useState<Certificate | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCertificate, setSelectedCertificate] =
+    useState<Certificate | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  
+
   // Fetch certificates issued by the university
   const { data: certificates = [], isLoading } = useQuery<Certificate[]>({
-    queryKey: ['/api/certificates'],
+    queryKey: ["/api/certificates"],
   });
 
   // Revoke certificate mutation
   const revokeMutation = useMutation({
     mutationFn: async ({ id, reason }: { id: number; reason: string }) => {
-      const res = await apiRequest('POST', `/api/certificates/${id}/revoke`, { revocationReason: reason });
+      const res = await apiRequest("POST", `/api/certificates/${id}/revoke`, {
+        revocationReason: reason,
+      });
       return await res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/certificates'] });
+      queryClient.invalidateQueries({ queryKey: ["/api/certificates"] });
       toast({
-        title: 'Certificate Revoked',
-        description: 'The certificate has been successfully revoked.',
+        title: "Certificate Revoked",
+        description: "The certificate has been successfully revoked.",
       });
     },
     onError: (error: Error) => {
       toast({
-        title: 'Error',
+        title: "Error",
         description: `Failed to revoke certificate: ${error.message}`,
-        variant: 'destructive',
+        variant: "destructive",
       });
     },
   });
@@ -47,18 +53,23 @@ export default function UniversityDashboard() {
   // Calculate stats for certificates
   const totalCertificates = certificates.length;
   const verificationThisMonth = 0; // This would be calculated from verifications data
-  const revokedCertificates = certificates.filter(cert => cert.status === 'revoked').length;
+  const revokedCertificates = certificates.filter(
+    (cert) => cert.status === "revoked"
+  ).length;
 
   // Filter certificates based on search query
-  const filteredCertificates = certificates.filter(cert => 
-    cert.studentName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    cert.degreeName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    cert.certificateId.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredCertificates = certificates.filter(
+    (cert) =>
+      cert.studentName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      cert.degreeName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      cert.certificateId.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   // Handle certificate revocation
   const handleRevokeCertificate = (id: number) => {
-    const reason = window.prompt('Please enter a reason for revoking this certificate:');
+    const reason = window.prompt(
+      "Please enter a reason for revoking this certificate:"
+    );
     if (reason) {
       revokeMutation.mutate({ id, reason });
     }
@@ -71,9 +82,9 @@ export default function UniversityDashboard() {
 
   if (selectedCertificate) {
     return (
-      <CertificateDetails 
-        certificate={selectedCertificate} 
-        onClose={() => setSelectedCertificate(null)} 
+      <CertificateDetails
+        certificate={selectedCertificate}
+        onClose={() => setSelectedCertificate(null)}
       />
     );
   }
@@ -98,7 +109,10 @@ export default function UniversityDashboard() {
           </p>
         </div>
         <div className="mt-4 flex md:mt-0 md:ml-4">
-          <Button onClick={() => setIsIssueModalOpen(true)} className="flex items-center">
+          <Button
+            onClick={() => setIsIssueModalOpen(true)}
+            className="flex items-center"
+          >
             <PlusCircle className="mr-2 h-4 w-4" />
             Issue New Certificate
           </Button>
@@ -135,8 +149,19 @@ export default function UniversityDashboard() {
           <div className="px-4 py-5 sm:p-6">
             <div className="flex items-center">
               <div className="flex-shrink-0 bg-green-100 rounded-md p-3">
-                <svg className="h-6 w-6 text-green-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                <svg
+                  className="h-6 w-6 text-green-600"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
                 </svg>
               </div>
               <div className="ml-5 w-0 flex-1">
@@ -183,9 +208,12 @@ export default function UniversityDashboard() {
       <div className="mt-8">
         <div className="sm:flex sm:items-center">
           <div className="sm:flex-auto">
-            <h3 className="text-lg font-medium text-secondary-900">Recent Certificates</h3>
+            <h3 className="text-lg font-medium text-secondary-900">
+              Recent Certificates
+            </h3>
             <p className="mt-2 text-sm text-secondary-700">
-              A list of all recently issued certificates including their recipient, status, and date.
+              A list of all recently issued certificates including their
+              recipient, status, and date.
             </p>
           </div>
           <div className="mt-4 sm:mt-0 sm:ml-16 sm:flex-none">
@@ -212,18 +240,41 @@ export default function UniversityDashboard() {
                 <table className="min-w-full divide-y divide-secondary-300">
                   <thead className="bg-secondary-50">
                     <tr>
-                      <th scope="col" className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-secondary-900 sm:pl-6">Student</th>
-                      <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-secondary-900">Certificate</th>
-                      <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-secondary-900">Status</th>
-                      <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-secondary-900">Date</th>
-                      <th scope="col" className="relative py-3.5 pl-3 pr-4 sm:pr-6">
+                      <th
+                        scope="col"
+                        className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-secondary-900 sm:pl-6"
+                      >
+                        Student
+                      </th>
+                      <th
+                        scope="col"
+                        className="px-3 py-3.5 text-left text-sm font-semibold text-secondary-900"
+                      >
+                        Certificate
+                      </th>
+                      <th
+                        scope="col"
+                        className="px-3 py-3.5 text-left text-sm font-semibold text-secondary-900"
+                      >
+                        Status
+                      </th>
+                      <th
+                        scope="col"
+                        className="px-3 py-3.5 text-left text-sm font-semibold text-secondary-900"
+                      >
+                        Date
+                      </th>
+                      <th
+                        scope="col"
+                        className="relative py-3.5 pl-3 pr-4 sm:pr-6"
+                      >
                         <span className="sr-only">Actions</span>
                       </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-secondary-200 bg-white">
                     {filteredCertificates.length > 0 ? (
-                      filteredCertificates.map(certificate => (
+                      filteredCertificates.map((certificate) => (
                         <tr key={certificate.id}>
                           <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm sm:pl-6">
                             <div className="flex items-center">
@@ -231,20 +282,33 @@ export default function UniversityDashboard() {
                                 {certificate.studentName.charAt(0)}
                               </div>
                               <div className="ml-4">
-                                <div className="font-medium text-secondary-900">{certificate.studentName}</div>
-                                <div className="text-secondary-500">{certificate.studentEmail}</div>
+                                <div className="font-medium text-secondary-900">
+                                  {certificate.studentName}
+                                </div>
+                                <div className="text-secondary-500">
+                                  {certificate.studentEmail}
+                                </div>
                               </div>
                             </div>
                           </td>
                           <td className="whitespace-nowrap px-3 py-4 text-sm text-secondary-900">
-                            <div className="text-secondary-900">{certificate.degreeName}</div>
+                            <div className="text-secondary-900">
+                              {certificate.degreeName}
+                            </div>
                             {certificate.degreeField && (
-                              <div className="text-secondary-500">{certificate.degreeField}</div>
+                              <div className="text-secondary-500">
+                                {certificate.degreeField}
+                              </div>
                             )}
                           </td>
                           <td className="whitespace-nowrap px-3 py-4 text-sm">
-                            <span className={`inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${getStatusBadgeClass(certificate.status)}`}>
-                              {certificate.status.charAt(0).toUpperCase() + certificate.status.slice(1)}
+                            <span
+                              className={`inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${getStatusBadgeClass(
+                                certificate.status
+                              )}`}
+                            >
+                              {certificate.status.charAt(0).toUpperCase() +
+                                certificate.status.slice(1)}
                             </span>
                           </td>
                           <td className="whitespace-nowrap px-3 py-4 text-sm text-secondary-500">
@@ -257,9 +321,11 @@ export default function UniversityDashboard() {
                             >
                               View
                             </button>
-                            {certificate.status !== 'revoked' && (
+                            {certificate.status !== "revoked" && (
                               <button
-                                onClick={() => handleRevokeCertificate(certificate.id)}
+                                onClick={() =>
+                                  handleRevokeCertificate(certificate.id)
+                                }
                                 className="text-red-600 hover:text-red-900"
                               >
                                 Revoke
@@ -270,8 +336,13 @@ export default function UniversityDashboard() {
                       ))
                     ) : (
                       <tr>
-                        <td colSpan={5} className="px-6 py-8 text-center text-sm text-secondary-500">
-                          {searchQuery ? 'No certificates found matching your search.' : 'No certificates have been issued yet.'}
+                        <td
+                          colSpan={5}
+                          className="px-6 py-8 text-center text-sm text-secondary-500"
+                        >
+                          {searchQuery
+                            ? "No certificates found matching your search."
+                            : "No certificates have been issued yet."}
                         </td>
                       </tr>
                     )}
@@ -295,7 +366,7 @@ export default function UniversityDashboard() {
 // Mocked SVG component
 function Scroll(props) {
   return (
-    <svg 
+    <svg
       {...props}
       xmlns="http://www.w3.org/2000/svg"
       fill="none"

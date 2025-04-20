@@ -1,10 +1,11 @@
-import { db } from './db';
-import { log } from './vite';
+import { db } from "./db";
+import { log } from "./vite";
+import util from "util";
 
 // This function pushes the schema to the database
 export async function runMigrations() {
-  log('Running database migrations...', 'database');
-  
+  log("Running database migrations...", "database");
+
   try {
     // Push the schema to the database
     await db.execute(`
@@ -45,10 +46,13 @@ export async function runMigrations() {
         status TEXT NOT NULL DEFAULT 'verified'
       );
     `);
-    
-    log('Database migrations completed successfully!', 'database');
+
+    log("Database migrations completed successfully!", "database");
   } catch (error) {
-    log(`Database migration error: ${error}`, 'database');
+    log(
+      `Database migration error:\n${util.inspect(error, { depth: null })}`,
+      "database"
+    );
     throw error;
   }
 }

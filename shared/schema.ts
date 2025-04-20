@@ -1,4 +1,12 @@
-import { pgTable, text, serial, integer, boolean, timestamp, json } from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  text,
+  serial,
+  integer,
+  boolean,
+  timestamp,
+  json,
+} from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -27,7 +35,7 @@ export const certificates = pgTable("certificates", {
   revocationDate: timestamp("revocation_date"),
   revocationReason: text("revocation_reason"),
   // Blockchain-related fields
-  ipfsCid: text("ipfs_cid"), // Content ID on IPFS 
+  ipfsCid: text("ipfs_cid"), // Content ID on IPFS
   blockchainTxHash: text("blockchain_tx_hash"), // Transaction hash on blockchain
 });
 
@@ -55,13 +63,17 @@ export const loginUserSchema = z.object({
 });
 
 // Certificate schemas
-export const insertCertificateSchema = createInsertSchema(certificates).omit({
-  id: true,
-  certificateHash: true,
-  certificateId: true,
-  revocationDate: true,
-  revocationReason: true,
-});
+export const insertCertificateSchema = createInsertSchema(certificates)
+  .omit({
+    id: true,
+    certificateHash: true,
+    certificateId: true,
+    revocationDate: true,
+    revocationReason: true,
+  })
+  .extend({
+    issueDate: z.coerce.date(),
+  });
 
 export const revokeCertificateSchema = z.object({
   id: z.number(),

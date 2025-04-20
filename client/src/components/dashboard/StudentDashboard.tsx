@@ -1,35 +1,41 @@
-import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { Certificate, Verification } from '@shared/schema';
-import CertificateCard from '@/components/certificate/CertificateCard';
-import CertificateDetails from '@/components/certificate/CertificateDetails';
-import { formatDate } from '@/utils/certificate-utils';
-import { Loader2 } from 'lucide-react';
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { Certificate, Verification } from "@shared/schema";
+import CertificateCard from "@/components/certificate/CertificateCard";
+import CertificateDetails from "@/components/certificate/CertificateDetails";
+import { formatDate } from "@/utils/certificate-utils";
+import { Loader2 } from "lucide-react";
 
 export default function StudentDashboard() {
-  const [selectedCertificate, setSelectedCertificate] = useState<Certificate | null>(null);
-  
+  const [selectedCertificate, setSelectedCertificate] =
+    useState<Certificate | null>(null);
+
   // Fetch certificates for the student
-  const { data: certificates = [], isLoading, error } = useQuery<Certificate[]>({
-    queryKey: ['/api/certificates'],
+  const {
+    data: certificates = [],
+    isLoading,
+    error,
+  } = useQuery<Certificate[]>({
+    queryKey: ["/api/certificates"],
   });
 
   // Get all verification history across certificates
   const { data: allVerifications = [] } = useQuery<Verification[]>({
-    queryKey: ['/api/verifications'],
+    queryKey: ["/api/verifications"],
     enabled: certificates.length > 0,
   });
 
   // Map verifications to certificates and flatten the array
-  const verificationHistory = certificates.flatMap(cert => 
+  const verificationHistory = certificates.flatMap((cert) =>
     allVerifications
-      .filter(v => v.certificateId === cert.id)
-      .map(v => ({ ...v, certificate: cert }))
+      .filter((v) => v.certificateId === cert.id)
+      .map((v) => ({ ...v, certificate: cert }))
   );
 
   // Sort verification history by date (newest first)
   const sortedVerificationHistory = [...verificationHistory].sort(
-    (a, b) => new Date(b.verifiedAt).getTime() - new Date(a.verifiedAt).getTime()
+    (a, b) =>
+      new Date(b.verifiedAt).getTime() - new Date(a.verifiedAt).getTime()
   );
 
   if (isLoading) {
@@ -50,9 +56,9 @@ export default function StudentDashboard() {
 
   if (selectedCertificate) {
     return (
-      <CertificateDetails 
-        certificate={selectedCertificate} 
-        onClose={() => setSelectedCertificate(null)} 
+      <CertificateDetails
+        certificate={selectedCertificate}
+        onClose={() => setSelectedCertificate(null)}
       />
     );
   }
@@ -74,14 +80,21 @@ export default function StudentDashboard() {
       <div className="bg-white shadow overflow-hidden sm:rounded-md">
         <ul className="divide-y divide-secondary-200">
           {certificates.length > 0 ? (
-            certificates.map(certificate => (
-              <li key={certificate.id} onClick={() => setSelectedCertificate(certificate)} className="cursor-pointer">
+            certificates.map((certificate) => (
+              <li
+                key={certificate.id}
+                onClick={() => setSelectedCertificate(certificate)}
+                className="cursor-pointer"
+              >
                 <CertificateCard certificate={certificate} />
               </li>
             ))
           ) : (
             <li className="px-6 py-8 text-center">
-              <p className="text-secondary-500">No certificates found. Certificates issued to you will appear here.</p>
+              <p className="text-secondary-500">
+                No certificates found. Certificates issued to you will appear
+                here.
+              </p>
             </li>
           )}
         </ul>
@@ -89,7 +102,9 @@ export default function StudentDashboard() {
 
       {/* Verification History */}
       <div className="mt-8">
-        <h3 className="text-lg font-medium text-secondary-900">Verification History</h3>
+        <h3 className="text-lg font-medium text-secondary-900">
+          Verification History
+        </h3>
         <div className="mt-4 bg-white shadow overflow-hidden sm:rounded-md">
           <ul className="divide-y divide-secondary-200">
             {sortedVerificationHistory.length > 0 ? (
@@ -114,7 +129,10 @@ export default function StudentDashboard() {
               ))
             ) : (
               <li className="px-6 py-8 text-center">
-                <p className="text-secondary-500">No verification history yet. When employers verify your certificates, it will be recorded here.</p>
+                <p className="text-secondary-500">
+                  No verification history yet. When employers verify your
+                  certificates, it will be recorded here.
+                </p>
               </li>
             )}
           </ul>

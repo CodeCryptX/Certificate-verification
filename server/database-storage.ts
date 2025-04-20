@@ -1,4 +1,14 @@
-import { users, certificates, verifications, type User, type InsertUser, type Certificate, type InsertCertificate, type Verification, type InsertVerification } from "@shared/schema";
+import {
+  users,
+  certificates,
+  verifications,
+  type User,
+  type InsertUser,
+  type Certificate,
+  type InsertCertificate,
+  type Verification,
+  type InsertVerification,
+} from "@shared/schema";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 import { db } from "./db";
@@ -25,7 +35,10 @@ export class DatabaseStorage implements IStorage {
     const [user] = await db.select().from(users).where(eq(users.id, id));
     return user;
   }
-
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.email, email));
+    return user;
+  }
   async getUserByUsername(username: string): Promise<User | undefined> {
     const [user] = await db
       .select()
@@ -38,9 +51,9 @@ export class DatabaseStorage implements IStorage {
     // Ensure role is set
     const userWithRole = {
       ...insertUser,
-      role: insertUser.role || 'student'
+      role: insertUser.role || "student",
     };
-    
+
     const [user] = await db.insert(users).values(userWithRole).returning();
     return user;
   }
@@ -62,7 +75,9 @@ export class DatabaseStorage implements IStorage {
     return certificate;
   }
 
-  async getCertificateById(certificateId: string): Promise<Certificate | undefined> {
+  async getCertificateById(
+    certificateId: string
+  ): Promise<Certificate | undefined> {
     const [certificate] = await db
       .select()
       .from(certificates)
@@ -77,7 +92,9 @@ export class DatabaseStorage implements IStorage {
       .where(eq(certificates.studentId, studentId));
   }
 
-  async getCertificatesByUniversityId(universityId: number): Promise<Certificate[]> {
+  async getCertificatesByUniversityId(
+    universityId: number
+  ): Promise<Certificate[]> {
     return await db
       .select()
       .from(certificates)
@@ -88,7 +105,12 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(certificates);
   }
 
-  async createCertificate(certificate: InsertCertificate & { certificateHash: string, certificateId: string }): Promise<Certificate> {
+  async createCertificate(
+    certificate: InsertCertificate & {
+      certificateHash: string;
+      certificateId: string;
+    }
+  ): Promise<Certificate> {
     const [newCertificate] = await db
       .insert(certificates)
       .values({
@@ -99,7 +121,11 @@ export class DatabaseStorage implements IStorage {
     return newCertificate;
   }
 
-  async updateCertificateStatus(id: number, status: string, reason?: string): Promise<Certificate | undefined> {
+  async updateCertificateStatus(
+    id: number,
+    status: string,
+    reason?: string
+  ): Promise<Certificate | undefined> {
     const [updatedCertificate] = await db
       .update(certificates)
       .set({
@@ -112,7 +138,11 @@ export class DatabaseStorage implements IStorage {
     return updatedCertificate;
   }
 
-  async updateCertificateBlockchainData(id: number, ipfsCid: string, blockchainTxHash: string | null): Promise<Certificate | undefined> {
+  async updateCertificateBlockchainData(
+    id: number,
+    ipfsCid: string,
+    blockchainTxHash: string | null
+  ): Promise<Certificate | undefined> {
     const [updatedCertificate] = await db
       .update(certificates)
       .set({
@@ -125,19 +155,23 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Verification methods
-  async getVerificationsByCertificateId(certificateId: number): Promise<Verification[]> {
+  async getVerificationsByCertificateId(
+    certificateId: number
+  ): Promise<Verification[]> {
     return await db
       .select()
       .from(verifications)
       .where(eq(verifications.certificateId, certificateId));
   }
 
-  async createVerification(verification: InsertVerification): Promise<Verification> {
+  async createVerification(
+    verification: InsertVerification
+  ): Promise<Verification> {
     const [newVerification] = await db
       .insert(verifications)
       .values({
         ...verification,
-        status: verification.status || 'verified'
+        status: verification.status || "verified",
       })
       .returning();
     return newVerification;

@@ -1,52 +1,101 @@
-import { useState } from 'react';
-import { useAuth } from '@/hooks/use-auth';
+"use client";
+
+import { useState } from "react";
+import { useAuth } from "../hooks/use-auth";
+import { Button } from "./ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "./ui/dropdown-menu";
+import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
+import { LogOut, User } from "lucide-react";
 
 export default function UserMenu() {
+  const auth = useAuth();
   const [isOpen, setIsOpen] = useState(false);
-  const { user, logoutMutation } = useAuth();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-  if (!user) return null;
+  // Extract user safely
+  const user = auth?.user;
+
+  if (!user) {
+    return null;
+  }
+
+  // Handle logout by making a POST request to the /api/logout endpoint
+  const handleLogout = async () => {
+    try {
+      setIsLoggingOut(true);
+
+      const response = await fetch("/api/logout", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include", // Important for sending cookies
+      });
+
+      if (response.ok) {
+        // If the server successfully logged out the user
+        // Redirect to the home page or root path
+        window.location.href = "/"; // Redirect to root path instead
+      } else {
+        console.error("Logout failed:", response.statusText);
+      }
+    } catch (error) {
+      console.error("Error during logout:", error);
+    } finally {
+      setIsLoggingOut(false);
+    }
+  };
 
   return (
-    <div className="ml-3 relative">
-      <div>
-        <button
-          type="button"
-          className="flex text-sm rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-          onClick={() => setIsOpen(!isOpen)}
-        >
-          <span className="sr-only">Open user menu</span>
-          <div className="h-8 w-8 rounded-full bg-primary-600 flex items-center justify-center text-white font-medium">
-            {user.name.charAt(0)}
-          </div>
-        </button>
-      </div>
-
-      {/* User dropdown menu */}
-      {isOpen && (
-        <div
-          className="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg py-1 bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-10"
-        >
-          <a
-            href="#"
-            className="block px-4 py-2 text-sm text-secondary-700 hover:bg-secondary-100"
-          >
-            Your Profile
-          </a>
-          <a
-            href="#"
-            className="block px-4 py-2 text-sm text-secondary-700 hover:bg-secondary-100"
-          >
-            Settings
-          </a>
-          <button
-            onClick={() => logoutMutation.mutate()}
-            className="w-full text-left block px-4 py-2 text-sm text-secondary-700 hover:bg-secondary-100"
-          >
-            Sign out
-          </button>
+    <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" className="relative h-10 w-10 rounded-full">
+          <Avatar className="h-9 w-9">
+            <AvatarImage
+              src="/placeholder.svg?height=36&width=36"
+              alt={user?.name || "User"}
+            />
+            <AvatarFallback>
+              <User className="h-5 w-5 text-muted-foreground" />
+            </AvatarFallback>
+          </Avatar>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent className="w-56" align="end" forceMount>
+        <div className="flex flex-col space-y-1 p-2">
+          <p className="text-sm font-medium">{user?.name || "User"}</p>
+          <p className="text-xs text-muted-foreground">{user?.email || ""}</p>
         </div>
-      )}
-    </div>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem asChild>
+          <Button
+            variant="ghost"
+            className="w-full justify-start"
+            onClick={() => (window.location.href = "/profile")}
+          >
+            <User className="mr-2 h-4 w-4" />
+            <span>Profile</span>
+          </Button>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem asChild>
+          <Button
+            variant="ghost"
+            className="w-full justify-start text-red-500 hover:text-red-600 hover:bg-red-50"
+            onClick={handleLogout}
+            disabled={isLoggingOut}
+          >
+            <LogOut className="mr-2 h-4 w-4" />
+            <span>{isLoggingOut ? "Logging out..." : "Log out"}</span>
+          </Button>
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

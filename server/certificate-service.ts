@@ -1,8 +1,8 @@
-import crypto from 'crypto';
-import { storage } from './storage';
-import { InsertCertificate, Certificate } from '@shared/schema';
-import { blockchainService } from './blockchain-service';
-import { log } from './vite';
+import crypto from "crypto";
+import { storage } from "./storage";
+import { InsertCertificate, Certificate } from "@shared/schema";
+import { blockchainService } from "./blockchain-service";
+import { log } from "./vite";
 
 export class CertificateService {
   /**
@@ -17,9 +17,9 @@ export class CertificateService {
       degreeField: certificate.degreeField,
       issueDate: certificate.issueDate,
     });
-    
+
     // Generate a SHA-256 hash
-    return crypto.createHash('sha256').update(certificateData).digest('hex');
+    return crypto.createHash("sha256").update(certificateData).digest("hex");
   }
 
   /**
@@ -27,17 +27,35 @@ export class CertificateService {
    */
   static generateCertificateId(): string {
     const timestamp = new Date().getTime();
-    const randomString = crypto.randomBytes(8).toString('hex');
+    const randomString = crypto.randomBytes(8).toString("hex");
     return `CERT-${timestamp}-${randomString}`;
   }
 
   /**
    * Create a new certificate
    */
-  static async issueCertificate(certificate: InsertCertificate): Promise<Certificate> {
+  static async issueCertificate(
+    certificate: InsertCertificate
+  ): Promise<Certificate> {
+    // Ensure we have a student ID
+    if (!certificate.studentId) {
+      // Look up student by email
+      const student = await storage.getUserByEmail(certificate.studentEmail);
+      if (student) {
+        certificate.studentId = student.id;
+      } else {
+        // Create a temporary student account if needed
+        // Or throw an error
+        throw new Error(
+          "Student with this email does not exist. Please register the student first."
+        );
+      }
+    }
+
+    // Rest of the method remains the same
     const certificateHash = this.generateCertificateHash(certificate);
     const certificateId = this.generateCertificateId();
-    
+
     // First store in the local database
     const savedCertificate = await storage.createCertificate({
       ...certificate,
@@ -48,10 +66,15 @@ export class CertificateService {
     // Then try to store in IPFS/blockchain if configured
     try {
       if (blockchainService.isConfigured()) {
-        const blockchainResult = await blockchainService.storeCertificate(savedCertificate);
+        const blockchainResult = await blockchainService.storeCertificate(
+          savedCertificate
+        );
         if (blockchainResult) {
-          log(`Certificate stored on IPFS with CID: ${blockchainResult.cid}`, 'certificate');
-          
+          log(
+            `Certificate stored on IPFS with CID: ${blockchainResult.cid}`,
+            "certificate"
+          );
+
           // Store the IPFS data in the database (and blockchain tx hash if available)
           await storage.updateCertificateBlockchainData(
             savedCertificate.id,
@@ -60,101 +83,152 @@ export class CertificateService {
           );
         }
       } else {
-        log('IPFS/Blockchain service not configured. Certificate stored only in database.', 'certificate');
+        log(
+          "IPFS/Blockchain service not configured. Certificate stored only in database.",
+          "certificate"
+        );
       }
     } catch (error) {
       // Don't fail if blockchain storage fails - we still have the database record
-      log(`Failed to store certificate on IPFS/blockchain: ${error}`, 'certificate');
+      log(
+        `Failed to store certificate on IPFS/blockchain: ${error}`,
+        "certificate"
+      );
     }
-    
+
     return savedCertificate;
   }
 
   /**
    * Verify a certificate by its hash
    */
-  static async verifyCertificateByHash(hash: string): Promise<Certificate | undefined> {
+  static async verifyCertificateByHash(
+    hash: string
+  ): Promise<Certificate | undefined> {
     // First check our database
     const certificate = await storage.getCertificateByHash(hash);
-    
+
     // If found and blockchain is configured, also verify on blockchain
-    if (certificate && blockchainService.isConfigured() && certificate.ipfsCid) {
+    if (
+      certificate &&
+      blockchainService.isConfigured() &&
+      certificate.ipfsCid
+    ) {
       try {
         // Verify the certificate hash on the blockchain using the stored CID
-        const isValid = await blockchainService.verifyCertificate(certificate.ipfsCid, hash);
-        
+        const isValid = await blockchainService.verifyCertificate(
+          certificate.ipfsCid,
+          hash
+        );
+
         // Log the blockchain verification result
         if (isValid === true) {
-          log(`Certificate verified on blockchain successfully. Hash: ${hash}`, 'certificate');
+          log(
+            `Certificate verified on blockchain successfully. Hash: ${hash}`,
+            "certificate"
+          );
         } else if (isValid === false) {
-          log(`Certificate verification failed on blockchain. Hash mismatch. Hash: ${hash}`, 'certificate');
+          log(
+            `Certificate verification failed on blockchain. Hash mismatch. Hash: ${hash}`,
+            "certificate"
+          );
           // In a production environment, you might want to flag this certificate as potentially tampered
         } else {
-          log(`Blockchain verification returned null (service error). Hash: ${hash}`, 'certificate');
+          log(
+            `Blockchain verification returned null (service error). Hash: ${hash}`,
+            "certificate"
+          );
         }
       } catch (error) {
-        log(`Blockchain verification failed: ${error}`, 'certificate');
+        log(`Blockchain verification failed: ${error}`, "certificate");
       }
     }
-    
+
     return certificate;
   }
 
   /**
    * Verify a certificate by its ID
    */
-  static async verifyCertificateById(id: string): Promise<Certificate | undefined> {
+  static async verifyCertificateById(
+    id: string
+  ): Promise<Certificate | undefined> {
     // First check our database
     const certificate = await storage.getCertificateById(id);
-    
+
     // Similar to the hash verification, we would also verify on blockchain if configured
-    if (certificate && blockchainService.isConfigured() && certificate.ipfsCid && certificate.certificateHash) {
+    if (
+      certificate &&
+      blockchainService.isConfigured() &&
+      certificate.ipfsCid &&
+      certificate.certificateHash
+    ) {
       try {
         // Verify the certificate hash on the blockchain using the stored CID
         const isValid = await blockchainService.verifyCertificate(
-          certificate.ipfsCid, 
+          certificate.ipfsCid,
           certificate.certificateHash
         );
-        
+
         // Log the blockchain verification result
         if (isValid === true) {
-          log(`Certificate verified on blockchain successfully. ID: ${id}`, 'certificate');
+          log(
+            `Certificate verified on blockchain successfully. ID: ${id}`,
+            "certificate"
+          );
         } else if (isValid === false) {
-          log(`Certificate verification failed on blockchain. Hash mismatch. ID: ${id}`, 'certificate');
+          log(
+            `Certificate verification failed on blockchain. Hash mismatch. ID: ${id}`,
+            "certificate"
+          );
           // In a production environment, you might want to flag this certificate as potentially tampered
         } else {
-          log(`Blockchain verification returned null (service error). ID: ${id}`, 'certificate');
+          log(
+            `Blockchain verification returned null (service error). ID: ${id}`,
+            "certificate"
+          );
         }
       } catch (error) {
-        log(`Blockchain verification failed: ${error}`, 'certificate');
+        log(`Blockchain verification failed: ${error}`, "certificate");
       }
     }
-    
+
     return certificate;
   }
 
   /**
    * Revoke a certificate
    */
-  static async revokeCertificate(id: number, reason: string): Promise<Certificate | undefined> {
+  static async revokeCertificate(
+    id: number,
+    reason: string
+  ): Promise<Certificate | undefined> {
     // Update in local database
-    const certificate = await storage.updateCertificateStatus(id, 'revoked', reason);
-    
+    const certificate = await storage.updateCertificateStatus(
+      id,
+      "revoked",
+      reason
+    );
+
     // In a real blockchain implementation, you would also record the revocation
     // on the blockchain for immutable proof of revocation
-    
+
     return certificate;
   }
 
   /**
    * Record a verification
    */
-  static async recordVerification(certificateId: number, verifiedBy: string, verifiedByEmail?: string): Promise<void> {
+  static async recordVerification(
+    certificateId: number,
+    verifiedBy: string,
+    verifiedByEmail?: string
+  ): Promise<void> {
     await storage.createVerification({
       certificateId,
       verifiedBy,
       verifiedByEmail,
-      status: 'verified'
+      status: "verified",
     });
   }
 }

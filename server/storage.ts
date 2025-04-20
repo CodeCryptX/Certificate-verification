@@ -1,4 +1,14 @@
-import { users, certificates, verifications, type User, type InsertUser, type Certificate, type InsertCertificate, type Verification, type InsertVerification } from "@shared/schema";
+import {
+  users,
+  certificates,
+  verifications,
+  type User,
+  type InsertUser,
+  type Certificate,
+  type InsertCertificate,
+  type Verification,
+  type InsertVerification,
+} from "@shared/schema";
 import session from "express-session";
 import createMemoryStore from "memorystore";
 
@@ -7,9 +17,10 @@ const MemoryStore = createMemoryStore(session);
 export interface IStorage {
   // User management
   getUser(id: number): Promise<User | undefined>;
+  getUserByEmail(email: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
-  
+
   // Certificate management
   getCertificate(id: number): Promise<Certificate | undefined>;
   getCertificateByHash(hash: string): Promise<Certificate | undefined>;
@@ -17,16 +28,31 @@ export interface IStorage {
   getCertificatesByStudentId(studentId: number): Promise<Certificate[]>;
   getCertificatesByUniversityId(universityId: number): Promise<Certificate[]>;
   getAllCertificates(): Promise<Certificate[]>;
-  createCertificate(certificate: InsertCertificate & { certificateHash: string, certificateId: string }): Promise<Certificate>;
-  updateCertificateStatus(id: number, status: string, reason?: string): Promise<Certificate | undefined>;
+  createCertificate(
+    certificate: InsertCertificate & {
+      certificateHash: string;
+      certificateId: string;
+    }
+  ): Promise<Certificate>;
+  updateCertificateStatus(
+    id: number,
+    status: string,
+    reason?: string
+  ): Promise<Certificate | undefined>;
   // Blockchain-related method
-  updateCertificateBlockchainData(id: number, ipfsCid: string, blockchainTxHash: string | null): Promise<Certificate | undefined>;
-  
+  updateCertificateBlockchainData(
+    id: number,
+    ipfsCid: string,
+    blockchainTxHash: string | null
+  ): Promise<Certificate | undefined>;
+
   // Verification management
-  getVerificationsByCertificateId(certificateId: number): Promise<Verification[]>;
+  getVerificationsByCertificateId(
+    certificateId: number
+  ): Promise<Verification[]>;
   createVerification(verification: InsertVerification): Promise<Verification>;
   getAllVerifications(): Promise<Verification[]>;
-  
+
   // Session store
   sessionStore: any;
 }
@@ -59,16 +85,20 @@ export class MemStorage implements IStorage {
 
   async getUserByUsername(username: string): Promise<User | undefined> {
     return Array.from(this.users.values()).find(
-      (user) => user.username.toLowerCase() === username.toLowerCase(),
+      (user) => user.username.toLowerCase() === username.toLowerCase()
     );
   }
-
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    return Array.from(this.users.values()).find(
+      (user) => user.email.toLowerCase() === email.toLowerCase()
+    );
+  }
   async createUser(insertUser: InsertUser): Promise<User> {
     const id = this.userCurrentId++;
-    const user: User = { 
-      ...insertUser, 
+    const user: User = {
+      ...insertUser,
       id,
-      role: insertUser.role || 'student' // Default role if not provided
+      role: insertUser.role || "student", // Default role if not provided
     };
     this.users.set(id, user);
     return user;
@@ -81,25 +111,29 @@ export class MemStorage implements IStorage {
 
   async getCertificateByHash(hash: string): Promise<Certificate | undefined> {
     return Array.from(this.certificates.values()).find(
-      (cert) => cert.certificateHash === hash,
+      (cert) => cert.certificateHash === hash
     );
   }
 
-  async getCertificateById(certificateId: string): Promise<Certificate | undefined> {
+  async getCertificateById(
+    certificateId: string
+  ): Promise<Certificate | undefined> {
     return Array.from(this.certificates.values()).find(
-      (cert) => cert.certificateId === certificateId,
+      (cert) => cert.certificateId === certificateId
     );
   }
 
   async getCertificatesByStudentId(studentId: number): Promise<Certificate[]> {
     return Array.from(this.certificates.values()).filter(
-      (cert) => cert.studentId === studentId,
+      (cert) => cert.studentId === studentId
     );
   }
 
-  async getCertificatesByUniversityId(universityId: number): Promise<Certificate[]> {
+  async getCertificatesByUniversityId(
+    universityId: number
+  ): Promise<Certificate[]> {
     return Array.from(this.certificates.values()).filter(
-      (cert) => cert.universityId === universityId,
+      (cert) => cert.universityId === universityId
     );
   }
 
@@ -107,9 +141,14 @@ export class MemStorage implements IStorage {
     return Array.from(this.certificates.values());
   }
 
-  async createCertificate(certificate: InsertCertificate & { certificateHash: string, certificateId: string }): Promise<Certificate> {
+  async createCertificate(
+    certificate: InsertCertificate & {
+      certificateHash: string;
+      certificateId: string;
+    }
+  ): Promise<Certificate> {
     const id = this.certificateCurrentId++;
-    
+
     // Create certificate with explicit field mappings to match schema
     const newCertificate: Certificate = {
       id,
@@ -128,62 +167,75 @@ export class MemStorage implements IStorage {
       revocationDate: null,
       revocationReason: null,
       ipfsCid: certificate.ipfsCid || null,
-      blockchainTxHash: certificate.blockchainTxHash || null
+      blockchainTxHash: certificate.blockchainTxHash || null,
     };
-    
+
     this.certificates.set(id, newCertificate);
     return newCertificate;
   }
 
-  async updateCertificateStatus(id: number, status: string, reason?: string): Promise<Certificate | undefined> {
+  async updateCertificateStatus(
+    id: number,
+    status: string,
+    reason?: string
+  ): Promise<Certificate | undefined> {
     const certificate = this.certificates.get(id);
     if (!certificate) return undefined;
-    
+
     const updatedCertificate: Certificate = {
       ...certificate,
       status,
-      revocationDate: status === "revoked" ? new Date() : certificate.revocationDate,
-      revocationReason: reason || certificate.revocationReason
+      revocationDate:
+        status === "revoked" ? new Date() : certificate.revocationDate,
+      revocationReason: reason || certificate.revocationReason,
     };
-    
+
     this.certificates.set(id, updatedCertificate);
     return updatedCertificate;
   }
-  
-  async updateCertificateBlockchainData(id: number, ipfsCid: string, blockchainTxHash: string | null): Promise<Certificate | undefined> {
+
+  async updateCertificateBlockchainData(
+    id: number,
+    ipfsCid: string,
+    blockchainTxHash: string | null
+  ): Promise<Certificate | undefined> {
     const certificate = this.certificates.get(id);
     if (!certificate) return undefined;
-    
+
     const updatedCertificate: Certificate = {
       ...certificate,
       ipfsCid,
-      blockchainTxHash
+      blockchainTxHash,
     };
-    
+
     this.certificates.set(id, updatedCertificate);
     return updatedCertificate;
   }
 
   // Verification methods
-  async getVerificationsByCertificateId(certificateId: number): Promise<Verification[]> {
+  async getVerificationsByCertificateId(
+    certificateId: number
+  ): Promise<Verification[]> {
     return Array.from(this.verifications.values()).filter(
-      (verification) => verification.certificateId === certificateId,
+      (verification) => verification.certificateId === certificateId
     );
   }
 
-  async createVerification(verification: InsertVerification): Promise<Verification> {
+  async createVerification(
+    verification: InsertVerification
+  ): Promise<Verification> {
     const id = this.verificationCurrentId++;
-    
+
     // Create verification with explicit field mappings to match schema
     const newVerification: Verification = {
       id,
       certificateId: verification.certificateId || null,
-      status: verification.status || 'verified',
+      status: verification.status || "verified",
       verifiedBy: verification.verifiedBy,
       verifiedByEmail: verification.verifiedByEmail || null,
-      verifiedAt: new Date()
+      verifiedAt: new Date(),
     };
-    
+
     this.verifications.set(id, newVerification);
     return newVerification;
   }
